@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人生累積模擬器 v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* 新增倒推功能區樣式 */
+        .reverse-section {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+        }
+        .unit-switch {
+            display: inline-block;
+            margin: 0 10px;
+        }
+        /* 进度条样式 */
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 30px;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+            background: linear-gradient(to right, #ff5252, #ffeb3b, #4caf50);
+            background-size: 200% 100%;
+            animation: progress-color 5s infinite;
+        }
+        /* 淡入动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease;
+        }
+        /* 进度条颜色动画 */
+        @keyframes progress-color {
+            0% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans max-w-3xl mx-auto p-4">
+    <h1 class="text-3xl font-bold text-center my-6">人生累積模擬器 v2.0</h1>
+
+    <!-- 倒推計算功能 -->
+    <div class="bg-white p-6 rounded-lg shadow-md my-6 reverse-section">
+        <h2 class="text-2xl font-bold mb-4">目標倒推計算</h2>
+        <div class="flex flex-wrap gap-4 mb-4">
+            <span class="self-center">我想要在</span>
+            <input type="number" id="targetDays" value="90" min="1" class="border border-gray-300 rounded px-3 py-2 flex-1" style="width: 80px;">
+            <select id="targetUnit" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <option value="day">天</option>
+                <option value="week">週</option>
+            </select>
+            <span class="self-center">內累積</span>
+            <input type="number" id="targetAmount" value="180" min="1" class="border border-gray-300 rounded px-3 py-2 flex-1">
+            <span class="self-center">單位</span>
+            <input type="text" id="targetUnitName" placeholder="請輸入單位名稱" class="border border-gray-300 rounded px-3 py-2 flex-1">
+            <button onclick="calculateReverse()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">計算所需頻率</button>
+        </div>
+        <div id="reverseResult"></div>
+        <div class="mt-6">
+            <canvas id="reverseChart"></canvas>
+        </div>
+        <div class="mt-4 progress-bar">
+            <div class="progress" id="reverseProgress"></div>
+        </div>
+    </div>
+
+    <!-- 修改後的單項模擬 -->
+    <div class="bg-white p-6 rounded-lg shadow-md my-6">
+        <h2 class="text-2xl font-bold mb-4">單項累積模擬</h2>
+        <div class="flex flex-wrap gap-4 mb-4">
+            <input type="number" id="dailyAmount" value="2" min="1" class="border border-gray-300 rounded px-3 py-2 flex-1">
+            <select id="frequency" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <option value="day">每日</option>
+                <option value="week">每週</option>
+            </select>
+            <input type="text" id="activityName" value="製作視頻" class="border border-gray-300 rounded px-3 py-2 flex-1">
+            <select id="timePeriod" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <option value="30">1個月</option>
+                <option value="90">3個月</option>
+                <option value="180">6個月</option>
+                <option value="365">1年</option>
+            </select>
+            <button onclick="calculateSingle()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">計算結果</button>
+        </div>
+        <div id="singleResult"></div>
+        <div class="mt-6">
+            <canvas id="singleChart"></canvas>
+        </div>
+    </div>
+
+    <!-- 自定義模擬模式 -->
+    <div class="bg-white p-6 rounded-lg shadow-md my-6">
+        <h2 class="text-2xl font-bold mb-4">多項累積模擬</h2>
+        <div id="activities">
+            <div class="flex gap-4 mb-4">
+                <input type="text" placeholder="活動名稱" value="製作視頻" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <input type="number" placeholder="每日數量" min="1" value="2" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <select class="border border-gray-300 rounded px-3 py-2 flex-1">
+                    <option value="day">每日</option>
+                    <option value="week">每週</option>
+                </select>
+                <button onclick="removeActivity(this)" class="text-red-500 hover:text-red-600">×</button>
+            </div>
+        </div>
+        <button onclick="addActivity()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-4">＋ 添加活動</button>
+        <div class="flex flex-wrap gap-4 mb-4">
+            <select id="multiTimePeriod" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <option value="30">1個月</option>
+                <option value="90">3個月</option>
+                <option value="180">6個月</option>
+                <option value="365">1年</option>
+            </select>
+            <button onclick="calculateMultiple()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">計算多項結果</button>
+        </div>
+        <div id="multiResult"></div>
+        <div class="mt-6">
+            <canvas id="multiChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let singleChart = null;
+        let multiChart = null;
+        let reverseChart = null;
+
+        // 新增單位轉換函式
+        function convertToDaily(amount, frequency) {
+            return frequency === 'week' ? amount / 7 : amount;
+        }
+
+        // 修改後的計算函式
+        function calculateResults(amount, frequency, days) {
+            const daily = convertToDaily(amount, frequency);
+            return {
+                total: Math.round(daily * days),
+                monthly: Math.round(daily * 30),
+                quarterly: Math.round(daily * 90),
+                yearly: Math.round(daily * 365)
+            };
+        }
+
+        // 新增倒推計算功能
+        function calculateReverse() {
+            const targetAmount = parseInt(document.getElementById('targetAmount').value);
+            const targetDays = parseInt(document.getElementById('targetDays').value);
+            const targetUnit = document.getElementById('targetUnit').value;
+            const targetUnitName = document.getElementById('targetUnitName').value;
+
+            const totalDays = targetUnit === 'week' ? targetDays * 7 : targetDays;
+
+            const dailyRequired = (targetAmount / totalDays).toFixed(1);
+            const weeklyRequired = (dailyRequired * 7).toFixed(1);
+
+            const resultHTML = `
+                <h3 class="fade-in">達成目標需要：</h3>
+                <p class="fade-in">每日堅持：<strong>${dailyRequired}</strong> ${targetUnitName}/天</p>
+                <p class="fade-in">或每週堅持：<strong>${weeklyRequired}</strong> ${targetUnitName}/週</p>
+                <p class="fade-in">相當於平均每天：<strong>${(targetAmount / totalDays).toFixed(2)}</strong> ${targetUnitName}</p>
+            `;
+            document.getElementById('reverseResult').innerHTML = resultHTML;
+
+            // 更新进度条
+            const progressBar = document.getElementById('reverseProgress');
+            const progress = (0 / targetAmount) * 100;
+            progressBar.style.width = `${progress}%`;
+            progressBar.textContent = `${progress.toFixed(2)}%`;
+
+            // 绘制图表
+            const ctx = document.getElementById('reverseChart').getContext('2d');
+            if (reverseChart) reverseChart.destroy();
+
+            reverseChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['每日', '每週'],
+                    datasets: [{
+                        label: `所需 ${targetUnitName} 數量`,
+                        data: [parseFloat(dailyRequired), parseFloat(weeklyRequired)],
+                        backgroundColor: ['#4CAF50', '#2196F3'],
+                        borderColor: ['#4CAF50', '#2196F3'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // 修改後的單項計算
+        function calculateSingle() {
+            const amount = parseInt(document.getElementById('dailyAmount').value);
+            const frequency = document.getElementById('frequency').value;
+            const days = parseInt(document.getElementById('timePeriod').value);
+            const activity = document.getElementById('activityName').value;
+
+            const results = calculateResults(amount, frequency, days);
+            showSingleResult(activity, amount, frequency, days, results);
+            drawSingleChart(results, activity);
+        }
+
+        // 在顯示結果時加入單位提示
+        function showSingleResult(activity, amount, frequency, days, results) {
+            const unitText = frequency === 'week' ? `每週 ${amount} 個` : `每日 ${amount} 個`;
+            const resultHTML = `
+                <h3 class="text-xl font-bold my-4">${activity} 累積結果 (${days}天):</h3>
+                <p>${unitText} →</p>
+                <p>1個月: ${results.monthly} 個</p>
+                <p>3個月: ${results.quarterly} 個</p>
+                <p>1年: ${results.yearly} 個</p>
+            `;
+            document.getElementById('singleResult').innerHTML = resultHTML;
+        }
+
+        // 添加活動
+        function addActivity() {
+            const newActivity = document.createElement('div');
+            newActivity.className = 'flex gap-4 mb-4';
+            newActivity.innerHTML = `
+                <input type="text" placeholder="活動名稱" value="新活動" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <input type="number" placeholder="每日數量" min="1" value="1" class="border border-gray-300 rounded px-3 py-2 flex-1">
+                <select class="border border-gray-300 rounded px-3 py-2 flex-1">
+                    <option value="day">每日</option>
+                    <option value="week">每週</option>
+                </select>
+                <button onclick="removeActivity(this)" class="text-red-500 hover:text-red-600">×</button>
+            `;
+            document.getElementById('activities').appendChild(newActivity);
+        }
+
+        // 移除活動
+        function removeActivity(btn) {
+            btn.parentElement.remove();
+        }
+
+        // 多項計算
+        function calculateMultiple() {
+            const activities = [];
+            document.querySelectorAll('#activities .flex').forEach(item => {
+                const inputs = item.querySelectorAll('input');
+                const frequency = item.querySelector('select').value;
+                activities.push({
+                    name: inputs[0].value,
+                    amount: parseInt(inputs[1].value),
+                    frequency
+                });
+            });
+
+            const days = parseInt(document.getElementById('multiTimePeriod').value);
+            const results = activities.map(a => ({
+                name: a.name,
+                data: calculateResults(a.amount, a.frequency, days)
+            }));
+
+            showMultiResult(results, days);
+            drawMultiChart(results, days);
+        }
+
+        function showMultiResult(results, days) {
+            let resultHTML = `<h3 class="text-xl font-bold my-4">多項活動累積結果 (${days}天):</h3>`;
+            results.forEach(r => {
+                resultHTML += `
+                    <div class="mb-6">
+                        <h4 class="text-lg font-bold">${r.name}</h4>
+                        <p>總累積量: ${r.data.total}</p>
+                        <p>月累積: ${r.data.monthly}</p>
+                        <p>年累積: ${r.data.yearly}</p>
+                    </div>
+                `;
+            });
+            document.getElementById('multiResult').innerHTML = resultHTML;
+        }
+
+        function drawSingleChart(results, label) {
+            const ctx = document.getElementById('singleChart').getContext('2d');
+            if (singleChart) singleChart.destroy();
+
+            singleChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['1個月', '3個月', '6個月', '1年'],
+                    datasets: [{
+                        label: label,
+                        data: [results.monthly, results.quarterly, results.monthly * 2, results.yearly],
+                        borderColor: '#4CAF50',
+                        tension: 0.1
+                    }]
+                }
+            });
+        }
+
+        function drawMultiChart(results, days) {
+            const ctx = document.getElementById('multiChart').getContext('2d');
+            if (multiChart) multiChart.destroy();
+
+            const colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'];
+
+            multiChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: results.map(r => r.name),
+                    datasets: [{
+                        label: `${days}天累積量`,
+                        data: results.map(r => r.data.total),
+                        backgroundColor: colors
+                    }]
+                }
+            });
+        }
+
+        // 初始化預設活動
+        addActivity();
+    </script>
+</body>
+</html>
+    
